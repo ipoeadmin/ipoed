@@ -32,23 +32,6 @@
 #include "ipoed.h"
 #include "radius.h"
 
-/* Global types definitions */
-
-typedef struct 
-{
-    char * option;
-    char * value;
-} ov_pair_t;
-
-struct ipoed_client_t
-{
-	char auth;
-	int in_band;
-	int out_band;
-	int sess_time_out;
-	int acct_interim;
-}
-
 /* Global variables definitions */
 
 int sock;
