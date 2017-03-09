@@ -40,23 +40,26 @@ typedef struct
     char * value;
 } ov_pair_t;
 
-/* struct ipoed_settings_t
+struct ipoed_client_t
 {
-	u_int16_t divert_port;
-	struct in_addr rad_srv_host;
-	u_int16_t rad_auth_port;
-	u_int16_t rad_acct_port;
-	char * rad_secret;
-	u_int16_t table_auth;
-	u_int16_t table_shaping;
-	u_char daemonize;
-}; */
+	char auth;
+	int in_band;
+	int out_band;
+	int sess_time_out;
+	int acct_interim;
+}
 
 /* Global variables definitions */
 
+int sock;
+int running = 1;
 char * errmsg;
 int errcode;
 u_char daemonize = 0;
+
+/* End of global variables definition */
+
+
 
 static const char * pid_name = "var/run/ipoed.pid";
 
@@ -88,10 +91,25 @@ int main(int argc, char ** argv)
     .table_shaping = htons(2),
     .daemonize = daemonize
     };
-    
+	
+    /* Option value pair */
+	
     ov_pair_t ** ov_pair;
+	
+    /* Radius handle */
+	
     struct rad_handle * rad_handle;
-        
+	
+    /* For packet processing */
+    
+    struct sockaddr_in addr;
+    struct ip * ip;
+    socklen_t addr_size;
+    int orig_byte;
+    char buf[BUF_LEN];
+	
+    struct ipoed_client_t ipoed_clients[65535];
+	
     openlog("ipoed", LOG_PID | LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
     errmsg = (char *)malloc(sizeof errmsg);
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
