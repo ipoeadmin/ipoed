@@ -1,6 +1,19 @@
 #DEFINE BUF_LEN 65535;
 
+typedef struct 
+{
+    char * option;
+    char * value;
+} ov_pair_t;
 
+struct ipoed_client_t
+{
+	char auth;
+	int in_band;
+	int out_band;
+	int sess_time_out;
+	int acct_interim;
+};
 
 struct ipoed_settings_t 
 {
