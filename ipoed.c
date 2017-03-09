@@ -22,6 +22,10 @@
 #include <syslog.h>
 #include <stdarg.h>
 
+/* RADIUS LIBRARY */
+#include <radlib.h>
+#include <radlib_vs.h>
+
 /* LOCAL INCLUDE */
 
 #include "radius.h"
@@ -84,12 +88,14 @@ int main(int argc, char ** argv)
     };
     
     ov_pair_t ** ov_pair;
-    
-    rad_initialize();
-    
+    struct rad_handle * rad_handle;
+        
     openlog("ipoed", LOG_PID | LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
     errmsg = (char *)malloc(sizeof errmsg);
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
+    
+    rad_initialize(rad_handle, ipoed_settings, errmsg);
+	
     syslog (LOG_INFO, "Attemtping to parse_args()...");
     errcode = parse_args(ov_pair, argv, argc, &daemonize, errmsg);
     
