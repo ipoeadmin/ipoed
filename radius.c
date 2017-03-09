@@ -87,5 +87,5 @@ int rad_send_req(struct rad_handle * rad_handle)
 		strcpy(errmsg, "Unable to send request\n");
 		return -1;
 	}
-	return (0);
+	return errcode;
 }
