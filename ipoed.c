@@ -91,6 +91,8 @@ int main(int argc, char ** argv)
     int orig_byte;
     char buf[BUF_LEN];
 	
+    struct in_addr ip_in_addr;
+	
     struct ipoed_client_t ipoed_clients[65535];
 	
     openlog("ipoed", LOG_PID | LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
@@ -150,9 +152,24 @@ int main(int argc, char ** argv)
 	
     siginterrupt(SIGTERM, 1);
     signal(SIGTERM, shutdown);
+	
+    /* Packet processing */	
+	
     while (running)
     {
+	    orig_byte = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *) &addr, &addr_size);
+	    if (orig_byte == -1)
+	    {
+		    if (errno != EINTR)
+			    strcpy(errmsg, "Read from divert socket failed\n");
+		    syslog(LOG_ERR, "Divert error: %s\n", errmsg);
+	    }
+	    ip = (struct ip*) buf;
+	    ip_in_addr = ip->ip_src;
     }
+	
+    /* END of Packet processing */
+	
     free(errmsg);
     free(ipoed_settings.rad_secret);
     free(ov_pair);
