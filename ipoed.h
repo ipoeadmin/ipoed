@@ -1,4 +1,4 @@
-#DEFINE BUF_LEN 65535;
+#define BUF_LEN 65535
 
 typedef struct 
 {
