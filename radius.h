@@ -1,0 +1,1 @@
+extern int rad_initialize();
