@@ -22,6 +22,10 @@
 #include <syslog.h>
 #include <stdarg.h>
 
+/* LOCAL INCLUDE */
+
+#include "radius.h"
+
 /* Global types definitions */
 
 typedef struct 
@@ -45,7 +49,7 @@ struct ipoed_settings_t
 /* Global variables definitions */
 
 char * errmsg;
-int errno;
+int errcode;
 u_char daemonize = 0;
 
 static const char * pid_name = "var/run/ipoed.pid";
@@ -81,22 +85,24 @@ int main(int argc, char ** argv)
     
     ov_pair_t ** ov_pair;
     
+    rad_initialize();
+    
     openlog("ipoed", LOG_PID | LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
     errmsg = (char *)malloc(sizeof errmsg);
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
     syslog (LOG_INFO, "Attemtping to parse_args()...");
-    errno = parse_args(ov_pair, argv, argc, &daemonize, errmsg);
+    errcode = parse_args(ov_pair, argv, argc, &daemonize, errmsg);
     
-    if (errno)
+    if (errcode)
     {
 	syslog(LOG_ERR, "Parse error: %s", errmsg);
 	return -1;
     }
     syslog (LOG_INFO, "parse_args() done.");
     syslog (LOG_INFO, "Attempting to init_settings()...");
-    errno = init_settings(&ipoed_settings, ov_pair, argc, errmsg);
+    errcode = init_settings(&ipoed_settings, ov_pair, argc, errmsg);
     
-    if (errno)
+    if (errcode)
     {
 	syslog(LOG_ERR, "Init error: %s", errmsg);
 	return -1;
