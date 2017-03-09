@@ -29,6 +29,7 @@
 
 /* LOCAL INCLUDE */
 
+#include "ipoed.h"
 #include "radius.h"
 
 /* Global types definitions */
@@ -39,7 +40,7 @@ typedef struct
     char * value;
 } ov_pair_t;
 
-struct ipoed_settings_t
+/* struct ipoed_settings_t
 {
 	u_int16_t divert_port;
 	struct in_addr rad_srv_host;
@@ -49,7 +50,7 @@ struct ipoed_settings_t
 	u_int16_t table_auth;
 	u_int16_t table_shaping;
 	u_char daemonize;
-};
+}; */
 
 /* Global variables definitions */
 

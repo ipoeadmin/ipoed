@@ -21,6 +21,7 @@
 #include <radlib.h>
 #include <radlib_vs.h>
 
+#include "ipoed.h"
 #include "radius.h"
 
 int rad_initialize(struct rad_handle * rad_handle, struct ipoed_settings_t * ipoed_settings, char * errmsg)
@@ -29,10 +30,12 @@ int rad_initialize(struct rad_handle * rad_handle, struct ipoed_settings_t * ipo
 	int timeout = 10;
 	int tries = 2;
 	int errcode = -1;
-
+	char * rad_host;
+	
+	rad_host = inet_ntoa(ipoed_settings->rad_srv_host);
 	rad_handle = rad_auth_open();
 	
-	if( (errcode = rad_add_server(rad_handle, ipoed_settings->rad_srv_host, ipoed_settings->rad_auth_port, ipoed_settings->rad_secret, timeout, tries)) == -1 )
+	if( (errcode = rad_add_server(rad_handle, rad_host, ipoed_settings->rad_auth_port, ipoed_settings->rad_secret, timeout, tries)) == -1 )
 	{
 		strcpy(errmsg, "Unable to add server!\n");
 		return -1;
@@ -82,7 +85,7 @@ int rad_add_user_name(struct rad_handle * rad_handle, struct in_addr ip, char * 
 	return (0);
 }
 
-int rad_send_req(struct rad_handle * rad_handle)
+int rad_send_req(struct rad_handle * rad_handle, char * errmsg)
 {
 	int errcode = -1;
 	
