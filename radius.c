@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
 #include <err.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -13,13 +14,16 @@
 /* Network include */
 
 #include <sys/socket.h>
-#include <netinet/ip.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <arpa/inet.h>
+
+#include <radlib.h>
+#include <radlib_vs.h>
 
 #include "radius.h"
 
-int rad_initialize(struct rad_handle * rad_handle, struct ipoed_settings_t * ipoed_settings, char * errmsg);
+int rad_initialize(struct rad_handle * rad_handle, struct ipoed_settings_t * ipoed_settings, char * errmsg)
 {
 	int rad_port;
 	int timeout = 10;
@@ -64,12 +68,12 @@ int rad_add_user_name(struct rad_handle * rad_handle, struct in_addr ip, char * 
 		return -1;
 	}
 	
-	if ( (c_ip = inet_ntoa()) == NULL)
+	/* if ( (c_ip = inet_ntoa()) == NULL)
 	{
 		strcpy(errmsg, "NO IP address given\n");
 		return -1;
 	}
-	
+	*/
 	if ( (errcode = rad_put_string(rad_handle, RAD_USER_NAME, c_ip)) == -1 )
 	{
 		strcpy(errmsg, "Unable to add RAD_USER_NAME\n");

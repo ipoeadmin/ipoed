@@ -95,7 +95,7 @@ int main(int argc, char ** argv)
     errmsg = (char *)malloc(sizeof errmsg);
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
     
-    rad_initialize(rad_handle, ipoed_settings, errmsg);
+    rad_initialize(rad_handle, &ipoed_settings, errmsg);
 	
     syslog (LOG_INFO, "Attemtping to parse_args()...");
     errcode = parse_args(ov_pair, argv, argc, &daemonize, errmsg);
