@@ -1,3 +1,6 @@
+#DEFINE BUF_LEN 65535;
+
+
 
 struct ipoed_settings_t 
 {
