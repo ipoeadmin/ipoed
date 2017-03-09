@@ -45,6 +45,9 @@ int is_valid_ip_address(struct in_addr * ip);
 
 void print_settings(struct ipoed_settings_t * ipoed_settings);
 
+/* Working with libradius */
+int rad_initialize();
+
 int main(int argc, char ** argv)
 {
 	struct ipoed_settings_t ipoed_settings =
@@ -262,3 +265,7 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
 	return (0);
 }
 
+int rad_initialize()
+{
+	return (0);
+}
