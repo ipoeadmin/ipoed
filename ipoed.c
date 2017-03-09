@@ -125,7 +125,32 @@ int main(int argc, char ** argv)
         syslog(LOG_INFO, "Daemonize...");
         daemon_mode();
     }
-    while (1)
+	
+    /* Bind divert socket */
+    
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = ipoed_settings.divert_port;
+    addr_size = sizeof addr;
+
+    if((sock = socket(PF_INET, SOCK_RAW, IPPROTO_DIVERT)) == -1)
+    {
+  	   strcpy(errmsg, "Unable to create global divert socket\n");
+	   syslog(LOG_ERR, "Divert error: %s", errmsg);
+	   return -1;
+    };
+	
+    errcode = bind(sock, (struct sockaddr *) &addr, addr_size);
+    if (errcode)
+    {
+	    strcpy(errmsg, "Unable to bind global divert socket\n");
+	    syslog(LOG_ERR, "Divert error: %s", errmsg);
+	    return -1;
+    };
+	
+    siginterrupt(SIGTERM, 1);
+    signal(SIGTERM, shutdown);
+    while (running)
     {
     }
     free(errmsg);
