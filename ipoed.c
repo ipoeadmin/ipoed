@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <err.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -92,6 +93,7 @@ int main(int argc, char ** argv)
     char buf[BUF_LEN];
 	
     struct in_addr ip_in_addr;
+    unsigned short ip_hash = 0;
 	
     struct ipoed_client_t ipoed_clients[65535];
 	
@@ -166,6 +168,27 @@ int main(int argc, char ** argv)
 	    }
 	    ip = (struct ip*) buf;
 	    ip_in_addr = ip->ip_src;
+	    ip_hash = htonl(ip_in_addr.s_addr) & 0x0000ffff;
+	    
+	    /* Check auth status */
+	    
+	    if (ipoed_clients[ip_hash].auth)
+		continue;
+	    
+	    if ( (errcode = rad_add_user_name(rad_handle, ip_in_addr, errmsg)) == -1 )
+	    {
+		    syslog(LOG_ERR, "RADIUS error: %s\n", errmsg);
+	    }
+	    
+	    switch ( errcode = rad_send_req(rad_handle, errmsg) )
+	    {
+		    case 2: 
+			ipoed_clients[ip_hash].auth = 1;
+			break;
+		    case 3:
+			ipeod_clients[ip_hash].auth = 0;
+			break;
+	    }
     }
 	
     /* END of Packet processing */

@@ -71,12 +71,12 @@ int rad_add_user_name(struct rad_handle * rad_handle, struct in_addr ip, char * 
 		return -1;
 	}
 	
-	/* if ( (c_ip = inet_ntoa()) == NULL)
+	if ( (c_ip = inet_ntoa(ip)) == NULL)
 	{
 		strcpy(errmsg, "NO IP address given\n");
 		return -1;
 	}
-	*/
+	
 	if ( (errcode = rad_put_string(rad_handle, RAD_USER_NAME, c_ip)) == -1 )
 	{
 		strcpy(errmsg, "Unable to add RAD_USER_NAME\n");
