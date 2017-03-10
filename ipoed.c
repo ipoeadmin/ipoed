@@ -73,7 +73,7 @@ int main(int argc, char ** argv)
     .rad_secret = (char *)malloc(sizeof(char) * 255),
     .table_auth = htons(1),
     .table_shaping = htons(2),
-    .daemonize = daemonize
+    .daemonize = 0
     };
 	
     /* Option value pair */
