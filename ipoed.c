@@ -68,8 +68,8 @@ int main(int argc, char ** argv)
     {
     .divert_port = htons(9000),
     .rad_srv_host.s_addr = inet_addr("127.0.0.1"),
-    .rad_auth_port = htons(1812),
-    .rad_acct_port = htons(1813),
+    .rad_auth_port = 1812,
+    .rad_acct_port = 0,
     .rad_secret = (char *)malloc(sizeof(char) * 255),
     .table_auth = htons(1),
     .table_shaping = htons(2),
@@ -101,7 +101,7 @@ int main(int argc, char ** argv)
     errmsg = (char *)malloc(sizeof errmsg);
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
     
-    rad_initialize(rad_handle, &ipoed_settings, errmsg);
+    
 	
     syslog (LOG_INFO, "Attemtping to parse_args()...");
     errcode = parse_args(ov_pair, argv, argc, &daemonize, errmsg);
@@ -159,6 +159,7 @@ int main(int argc, char ** argv)
 	
     while (running)
     {
+	    rad_handle = rad_auth_open();
 	    orig_byte = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *) &addr, &addr_size);
 	    if (orig_byte == -1)
 	    {
@@ -172,23 +173,36 @@ int main(int argc, char ** argv)
 	    
 	    /* Check auth status */
 	    
-	    if (ipoed_clients[ip_hash].auth)
+	    if (ipoed_clients[ip_hash].auth == 1)
 		continue;
+	    
+	    if ( (errcode = rad_initialize(rad_handle, &ipoed_settings, errmsg)) == -1 )
+	    {
+		    syslog(LOG_ERR, "RADIUS error: %s", errmsg);
+		    continue;
+	    }
 	    
 	    if ( (errcode = rad_add_user_name(rad_handle, ip_in_addr, errmsg)) == -1 )
 	    {
-		    syslog(LOG_ERR, "RADIUS error: %s\n", errmsg);
+		    syslog(LOG_ERR, "RADIUS error: %s", errmsg);
+		    continue;
 	    }
 	    
 	    switch ( errcode = rad_send_req(rad_handle, errmsg) )
 	    {
 		    case 2: 
 			ipoed_clients[ip_hash].auth = 1;
+			printf("IP %s is auth\n", inet_ntoa(ip_in_addr));
 			break;
 		    case 3:
-			ipeod_clients[ip_hash].auth = 0;
+			ipoed_clients[ip_hash].auth = 0;
+			printf("IP %s is not auth\n", inet_ntoa(ip_in_addr));
+			break;
+		    default:
+			printf("Nothing to do!  %s \n", rad_strerror(rad_handle));
 			break;
 	    }
+	    free(rad_handle);
     }
 	
     /* END of Packet processing */
@@ -220,8 +234,8 @@ void print_settings(struct ipoed_settings_t * ipoed_settings)
 {
     printf("Divert port: %d\n", ntohs(ipoed_settings->divert_port));
     printf("RADIUS Server IP address: %s\n", inet_ntoa(ipoed_settings->rad_srv_host));
-    printf("RADIUS Auth port: %d\n", ntohs(ipoed_settings->rad_auth_port));
-    printf("RADIUS Acct port: %d\n", ntohs(ipoed_settings->rad_acct_port));
+    printf("RADIUS Auth port: %d\n", ipoed_settings->rad_auth_port);
+    printf("RADIUS Acct port: %d\n", ipoed_settings->rad_acct_port);
     printf("RADIUS Secret: %s\n", ipoed_settings->rad_secret);
     printf("IPFW Auth table: %d\n", ntohs(ipoed_settings->table_auth));
     printf("IPFW Shaping table: %d\n", ntohs(ipoed_settings->table_shaping));
