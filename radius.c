@@ -57,6 +57,32 @@ int rad_initialize(struct rad_handle * rad_handle, struct ipoed_settings_t * ipo
 		strcpy(errmsg, "Unable to add NAS_PORT\n");
 		return -1;
 	}
+	
+		if ( (errcode = rad_put_string(rad_handle, RAD_NAS_IDENTIFIER, "ipoe.navigator-com.ru")) == -1 )
+	{
+		strcpy(errmsg, "Unable to add NAS_IDENTIFIER\n");
+		return -1;
+	}
+	
+		if ( (errcode = rad_put_string(rad_handle, RAD_ACCT_SESSION_ID, "TEST")) == -1 )
+	{
+		strcpy(errmsg, "Unable to add NAS_ACCT_SESSION_ID\n");
+		return -1;
+	}
+	
+		if ( (errcode = rad_put_int(rad_handle, RAD_NAS_PORT_TYPE, 15 )) == -1 )
+	{
+		strcpy(errmsg, "Unable to add NAS_PORT_TYPE\n");
+		return -1;
+	}
+	
+		if ( (errcode = rad_put_int(rad_handle, RAD_SERVICE_TYPE, 2)) == -1 )
+	{
+		strcpy(errmsg, "Unable to add RAD_SERVICE_TYPE\n");
+		return -1;
+	}
+	
+
 	return (0);
 }
 
