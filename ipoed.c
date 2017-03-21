@@ -202,7 +202,7 @@ int main(int argc, char ** argv)
 			printf("Nothing to do!  %s \n", rad_strerror(rad_handle));
 			break;
 	    }
-	    free(rad_handle);
+	    rad_close(rad_handle);
     }
 	
     /* END of Packet processing */
@@ -259,10 +259,8 @@ int parse_args(ov_pair_t ** ov_pair,char ** argv, int argc, u_char * daemonize, 
     char sep[10] = "=";
     char * option_buf;
     char * value_buf;
-    
-    option_buf = (char *)malloc(sizeof option_buf * 255);
-    value_buf = (char *)malloc(sizeof value_buf * 255);
-    
+    option_buf = (char *)malloc(sizeof option_buf * 100);
+    value_buf = (char *)malloc(sizeof value_buf * 100);
     for (arg = 1; arg < argc; arg++)
     {
 	if ((ov_pair[arg] = (ov_pair_t *)malloc(sizeof(ov_pair_t))) == NULL)
@@ -285,12 +283,12 @@ int parse_args(ov_pair_t ** ov_pair,char ** argv, int argc, u_char * daemonize, 
 	    strcpy(errmsg, "Illegal option value! \n");
 	    return 3;
 	}
-	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 255);
-	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 255);
-	option_buf = strtok(argv[arg], sep);
+	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 100);
+	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 100);
+	strcpy(option_buf, strtok(argv[arg], sep));
 	strcpy(ov_pair[arg]->option, option_buf + 2);
 	strcpy(ov_pair[arg]->value, value_buf + 1);
-	ovp_index++;
+//	ovp_index++;
     }
     free(option_buf);
     free(value_buf);
@@ -303,7 +301,6 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
     int int_buf;
     char * char_buf;
     in_addr_t ip_addr_buf;
-
     char_buf=(char *)malloc(sizeof char_buf);
     if (ipoed_settings == NULL)
     {
