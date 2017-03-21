@@ -287,7 +287,7 @@ int parse_args(ov_pair_t ** ov_pair,char ** argv, int argc, u_char * daemonize, 
 	}
 	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 255);
 	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 255);
-	option_buf = strtok(argv[arg], sep);
+	strcpy(option_buf, strtok(argv[arg], sep));
 	strcpy(ov_pair[arg]->option, option_buf + 2);
 	strcpy(ov_pair[arg]->value, value_buf + 1);
 	ovp_index++;
