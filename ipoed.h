@@ -1,4 +1,5 @@
 #define BUF_LEN 65535
+#define ACL_NAME_LEN 255
 
 typedef struct 
 {
@@ -16,21 +17,32 @@ struct radconf_t
 	char * rad_secret;
 };
 
+struct acl 
+{
+	u_short number;
+	u_short real_number;
+	struct acl * next;
+	char name[ACL_NAME_LEN];
+	char rule[1];
+};
+
+
 struct authdata_t 
 {
 	char * uname;
+	struct in_addr me;
+	u_char status;
+	struct timeval * session_updated;
+	char * session_id;
+	u_int16_t sess_time_out;
+	u_int16_t acct_interim;
 	struct radconf_t * radconf;
 	struct rad_handle * rad_handle;
+	struct acl acl;
 };
 
 struct ipoed_user_profile_t
-{
-	u_char auth;
-	u_char reauth;
-	u_int32_t in_band;
-	u_int32_t out_band;
-	u_int16_t sess_time_out;
-	u_int16_t acct_interim;
+{	
 	struct authdata_t authdata;
 };
 

@@ -6,9 +6,12 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <sys/param.h>
 #include <libutil.h>
+
+#include <sys/time.h>
 
 /* Net include */
 
@@ -49,6 +52,7 @@ static const char * pid_name = "var/run/ipoed.pid";
 
 /* Some Function definitions */
 
+static void Shutdown(int sig __unused);
 int parse_args(ov_pair_t ** ov_pair, char ** argv, int argc, u_char * daemonize,char * errmsg);
 int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair, int argc, char * errmsg);
 
@@ -58,11 +62,15 @@ int is_bit(int bit);
 
 static void daemon_mode(void);
 
+static int get_session_id(char * ip, char * res);
+
 void print_settings(struct ipoed_settings_t * ipoed_settings);
 
 int main(int argc, char ** argv)
 {
     /* Global settings*/
+    
+    struct timeval * tv;
     
     struct ipoed_settings_t ipoed_settings =
     {
@@ -152,7 +160,7 @@ int main(int argc, char ** argv)
     };
 	
     siginterrupt(SIGTERM, 1);
-    signal(SIGTERM, shutdown);
+    signal(SIGTERM, Shutdown);
 	
     /* Packet processing */	
 	
@@ -171,17 +179,27 @@ int main(int argc, char ** argv)
 	    ipoed_user_profiles[ip_hash].authdata.radconf = ipoed_settings.radconf;
 	    ipoed_user_profiles[ip_hash].authdata.rad_handle = rad_open();
 	    
+	    if (ipoed_user_profiles[ip_hash].authdata.session_updated == NULL)
+	    {
+		ipoed_user_profiles[ip_hash].authdata.session_updated = (struct timeval *)malloc(sizeof(struct timeval));
+	    }
 	    if (ipoed_user_profiles[ip_hash].authdata.uname == NULL)
-		ipoed_user_profiles[ip_hash].authdata.uname = (char *)malloc(sizeof(char));
+		ipoed_user_profiles[ip_hash].authdata.uname = (char *)malloc(sizeof(char) * 16);
 	    
 	    strcpy(ipoed_user_profiles[ip_hash].authdata.uname, inet_ntoa(ip_in_addr));
+	    if (ipoed_user_profiles[ip_hash].authdata.session_id == NULL)
+		ipoed_user_profiles[ip_hash].authdata.session_id = (char *)malloc(sizeof(char) * 30);
+
+	    get_session_id(ipoed_user_profiles[ip_hash].authdata.uname, ipoed_user_profiles[ip_hash].authdata.session_id);
+	    
 	    /* Check auth status */
 	
-	    if (ipoed_user_profiles[ip_hash].auth == 1)
+	    if (ipoed_user_profiles[ip_hash].authdata.status == 1)
 		continue;
-	    if (RadiusOpen(&ipoed_user_profiles[ip_hash].authdata, RAD_ACCESS_REQUEST) == RAD_NACK)
-		syslog(LOG_INFO, "Authentication failed for %s\n", ipoed_user_profiles[ip_hash].authdata.uname, errmsg);
-	    rad_close(ipoed_user_profiles[ip_hash].authdata.rad_handle);
+		
+	    radius_authenticate(&(ipoed_user_profiles[ip_hash].authdata));
+		
+	    radius_close(&(ipoed_user_profiles[ip_hash].authdata));
     }
 	
     /* END of Packet processing */
@@ -190,6 +208,7 @@ int main(int argc, char ** argv)
     free(ipoed_settings.radconf);
     free(radconf);
     free(ov_pair);
+    free(&ipoed_user_profiles);
     closelog();
     return (0);
 }
@@ -391,3 +410,26 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
     return (0);
 }
 
+static void Shutdown(int sig __unused)
+{
+	running = 0;
+};
+
+static int  get_session_id(char * ip, char * res)
+{
+        char * tmpval;
+        u_int16_t ip_hash;
+        in_addr_t in_addr;
+        struct timeval  tv;
+	tmpval = (char *)malloc(sizeof(char));
+        if ((in_addr = inet_addr(ip)) == -1)
+        {
+                return -1;
+        }
+        ip_hash = in_addr & 0x0000FFFF;
+	gettimeofday(&tv, NULL);
+        sprintf(tmpval, "LINK-%d-%ld", ip_hash, tv.tv_sec);
+        strcpy(res, tmpval);
+        free(tmpval);
+        return 0;
+}

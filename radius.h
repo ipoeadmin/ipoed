@@ -8,4 +8,6 @@
 #define RAD_ACCOUNTING_REQUEST 	4
 #define RAD_ACCOUNTING_RESPONSE	5
 
-extern radius_authenticate()
+extern int radius_authenticate(struct authdata_t *);
+extern void radius_close(struct  authdata_t *);
+
