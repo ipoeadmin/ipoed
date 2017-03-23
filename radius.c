@@ -32,6 +32,7 @@ static int radius_open(struct authdata_t * authdata, short request_type);
 static int radius_start(struct authdata_t * authdata, short request_type);
 static int radius_put_auth(struct authdata_t * authdata);
 static int radius_send_request(struct authdata_t * authdata);
+static int radius_get_params(struct authdata_t * authdata);
 
 void radius_close(struct authdata_t * authdata)
 {
@@ -45,7 +46,7 @@ int radius_authenticate(struct authdata_t * authdata)
 	syslog(LOG_INFO, "RADIUS: Authenticating user '%s'\n", authdata->uname);
 	if (radius_start(authdata, RAD_ACCESS_REQUEST) == RAD_NACK || radius_put_auth(authdata) == RAD_NACK || radius_send_request(authdata) == RAD_NACK)
 		return (-1);
-	authdata->status=1;
+//	authdata->status=1;
 	return (0);
 }
 
@@ -175,7 +176,9 @@ static int radius_send_request(struct authdata_t * authdata)
 	struct timeval timelimit;
 	struct timeval tv;
 	int fd, n;
+/* DEBUG
 	syslog(LOG_INFO, "RADIUS: Send request for %s", authdata->uname);
+*/
 	n = rad_init_send_request(authdata->rad_handle, &fd, &tv);
 	if ( n!=0 )
 	{
@@ -186,31 +189,31 @@ static int radius_send_request(struct authdata_t * authdata)
 	timeradd(&tv, &timelimit, &timelimit);
 	for ( ; ; )
 	{
-		syslog(LOG_INFO, "RADIUS: after for %d", n);
 		struct pollfd fds[1];
-		fds[0].fd = 0;
+		fds[0].fd = fd;
 		fds[0].events = POLLIN;
-		fds[0].revents = 0;
+		fds[0].revents = 123;
 		n = poll(fds, 1, tv.tv_sec * 1000 + tv.tv_usec/1000);
-		syslog(LOG_INFO, "POLL: %d", n);
 		if (n == -1)
 		{
-			syslog(LOG_ERR, "RADIUS: poll failed %s", strerror(errno));
 			return RAD_NACK;
 		}
-		syslog(LOG_INFO, "POLL: %d", fds[0].revents);
 		if ((fds[0].revents&POLLIN) != POLLIN)
 		{
+/* DEBUG		syslog(LOG_INFO, "DEBUG: not pollin %d", fds[0].revents); */
 			gettimeofday(&tv, NULL);
 			timersub(&timelimit, &tv, &tv);
-			if (tv.tv_sec > 0 || (tv.tv_sec == 0 && tv.tv_usec > 0 ))
+			if (tv.tv_sec > 0 || ((tv.tv_sec == 0) && (tv.tv_usec > 0) ))
 				continue;
 		}
 		
 		syslog(LOG_INFO, "RADIUS: Sending request for user '%s'", authdata->uname);
+/* FOR DEBUG
 		syslog(LOG_INFO, "DEBUG: rad_host from rad_handle = %s", inet_ntoa(authdata->rad_handle->servers[0].addr.sin_addr));
 		syslog(LOG_INFO, "DEBUG: rad_secret from rad_handle = %s", authdata->rad_handle->servers[0].secret);
 		syslog(LOG_INFO, "DEBUG: rad_auth_port from rad_handle = %d", authdata->rad_handle->servers[0].secret);
+		syslog(LOG_INFO, "DEBUG: rad_handle after is  %p", authdata->rad_handle);
+*/
 		n = rad_continue_send_request(authdata->rad_handle, n, &fd, &tv);
 		if (n !=0)
 			break;
@@ -241,7 +244,49 @@ static int radius_send_request(struct authdata_t * authdata)
 			syslog(LOG_ERR, "RADIUS: rad_send_request for user '%s' filed: %s", authdata->uname, rad_strerror(authdata->rad_handle));
 			break;
 			return RAD_NACK;
+		
+		default:
+			syslog(LOG_ERR, "RADIUS: rad_send_request: unexpected returned value: %d", n);
+			return RAD_NACK;
+		
 	}
 	
-	return RAD_ACK;
+	return (radius_get_params(authdata));
+}
+
+static int radius_get_params(struct authdata_t * authdata)
+{
+	const void * data;
+	size_t len;
+	int res, i, j;
+	u_int32_t vendor;
+	char buf[64];
+	struct in_addr ip;
+	
+	while (( res = rad_get_attr(authdata->rad_handle, &data, &len)) > 0 )
+	{
+		switch (res)
+		{
+			case RAD_VENDOR_SPECIFIC:
+				if (( res = rad_get_vendor_attr(&vendor, &data, &len)) == -1)
+					{
+						syslog(LOG_ERR, "RADIUS: Get vendor attr failed: %s", rad_strerror(authdata->rad_handle));
+						return RAD_NACK;
+					}
+				
+				switch (vendor)
+				{
+					case 9:
+						switch (res)
+						{
+							case 1: 
+								syslog(LOG_INFO, "RADIUS: Get Cisco-AVPair: '%s'", rad_cvt_string(data, len));
+								break;
+						}
+				}
+			default:
+				return RAD_ACK;
+		}
+	}
+	return 0;
 }
