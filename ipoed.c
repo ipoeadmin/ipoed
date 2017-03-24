@@ -100,12 +100,15 @@ int main(int argc, char ** argv)
     
     openlog("ipoed", LOG_PID | LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
     errmsg = (char *)malloc(sizeof errmsg);
+    
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
     
     radconf = (struct radconf_t *)malloc(sizeof(struct radconf_t));
+    
     radconf->rad_host.s_addr = inet_addr("127.0.0.1");
     radconf->rad_auth_port = 1812;
     radconf->rad_acct_port = 1813;
+    
     radconf->rad_secret = (char *)malloc(sizeof(char) * 255);
     
     ipoed_settings.radconf = radconf;
@@ -180,15 +183,15 @@ int main(int argc, char ** argv)
 	    ipoed_user_profiles[ip_hash].authdata.rad_handle = rad_open();
 	    
 	    if (ipoed_user_profiles[ip_hash].authdata.session_updated == NULL)
-	    {
 		ipoed_user_profiles[ip_hash].authdata.session_updated = (struct timeval *)malloc(sizeof(struct timeval));
-	    }
+		
 	    if (ipoed_user_profiles[ip_hash].authdata.uname == NULL)
 		ipoed_user_profiles[ip_hash].authdata.uname = (char *)malloc(sizeof(char) * 16);
-	    
+
 	    strcpy(ipoed_user_profiles[ip_hash].authdata.uname, inet_ntoa(ip_in_addr));
+
 	    if (ipoed_user_profiles[ip_hash].authdata.session_id == NULL)
-		ipoed_user_profiles[ip_hash].authdata.session_id = (char *)malloc(sizeof(char) * 30);
+		ipoed_user_profiles[ip_hash].authdata.session_id = (char *)malloc(sizeof(char) * 20);
 
 	    get_session_id(ipoed_user_profiles[ip_hash].authdata.uname, ipoed_user_profiles[ip_hash].authdata.session_id);
 	    
@@ -196,7 +199,7 @@ int main(int argc, char ** argv)
 	
 	    if (ipoed_user_profiles[ip_hash].authdata.status == 1)
 		continue;
-		
+
 	    radius_authenticate(&(ipoed_user_profiles[ip_hash].authdata));
 		
 	    radius_close(&(ipoed_user_profiles[ip_hash].authdata));

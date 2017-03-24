@@ -1,6 +1,8 @@
 #define BUF_LEN 65535
 #define ACL_NAME_LEN 255
 
+#define DEBUG
+
 typedef struct 
 {
     char * option;
@@ -17,13 +19,11 @@ struct radconf_t
 	char * rad_secret;
 };
 
-struct acl 
+struct acl_t 
 {
-	u_short number;
-	u_short real_number;
-	struct acl * next;
+	struct acl_t * next;
 	char name[ACL_NAME_LEN];
-	char rule[1];
+	char * rule;
 };
 
 
@@ -34,11 +34,11 @@ struct authdata_t
 	u_char status;
 	struct timeval * session_updated;
 	char * session_id;
-	u_int16_t sess_time_out;
-	u_int16_t acct_interim;
+	u_int32_t sess_time_out;
+	u_int32_t acct_interim;
 	struct radconf_t * radconf;
 	struct rad_handle * rad_handle;
-	struct acl acl;
+	struct acl_t * acl;
 };
 
 struct ipoed_user_profile_t

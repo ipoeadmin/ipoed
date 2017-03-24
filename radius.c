@@ -46,7 +46,6 @@ int radius_authenticate(struct authdata_t * authdata)
 	syslog(LOG_INFO, "RADIUS: Authenticating user '%s'\n", authdata->uname);
 	if (radius_start(authdata, RAD_ACCESS_REQUEST) == RAD_NACK || radius_put_auth(authdata) == RAD_NACK || radius_send_request(authdata) == RAD_NACK)
 		return (-1);
-//	authdata->status=1;
 	return (0);
 }
 
@@ -261,8 +260,9 @@ static int radius_get_params(struct authdata_t * authdata)
 	int res, i, j;
 	u_int32_t timeout;
 	u_int32_t vendor;
-	char buf[64];
+	char * buf;
 	struct in_addr ip;
+	struct acl_t * acl, acl1;
 	
 	while (( res = rad_get_attr(authdata->rad_handle, &data, &len)) > 0 )
 	{
@@ -291,11 +291,13 @@ static int radius_get_params(struct authdata_t * authdata)
 			case RAD_SESSION_TIMEOUT:
 				timeout = rad_cvt_int(data);
 				syslog(LOG_INFO, "RADIUS: RAD_SESSION_TIMEOUT=%u", timeout);
+				authdata->sess_time_out = timeout;
 				break;
 				
 			case RAD_ACCT_INTERIM_INTERVAL:
 				timeout = rad_cvt_int(data);
 				syslog(LOG_INFO, "RADIUS: RAD_ACCT_INTERIM_INTERVAL=%u", timeout);
+				authdata->acct_interim = timeout;
 				break;
 				
 			case RAD_VENDOR_SPECIFIC:
@@ -310,7 +312,21 @@ static int radius_get_params(struct authdata_t * authdata)
 						switch (res)
 						{
 							case 1: 
-								syslog(LOG_INFO, "RADIUS: Get Cisco-AVPair: '%s'", rad_cvt_string(data, len));
+								buf = (char *)malloc(sizeof(buf)+128);
+								strcpy(buf, rad_cvt_string(data, len));
+								if (authdata->acl == NULL)
+									authdata->acl = malloc(sizeof(struct acl_t));
+								acl = authdata->acl;
+								while( acl->next != NULL )
+								{
+									acl = acl->next;
+								}
+								sprintf(acl->name, "Cisco-AVPair");
+								acl->rule = (char *) malloc(sizeof(buf)+128);
+								strcpy(acl->rule, buf);
+								syslog(LOG_INFO, "RADIUS: Get %s: %s", acl->name, acl->rule);
+								acl->next = malloc(sizeof(struct acl_t));
+								free(buf);
 								break;
 						}
 				}
