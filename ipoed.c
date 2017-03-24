@@ -285,13 +285,9 @@ int parse_args(ov_pair_t ** ov_pair,char ** argv, int argc, u_char * daemonize, 
 	    strcpy(errmsg, "Illegal option value! \n");
 	    return 3;
 	}
-<<<<<<< HEAD
-	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 255);
-	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 255);
-=======
 	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 100);
 	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 100);
->>>>>>> test1
+
 	strcpy(option_buf, strtok(argv[arg], sep));
 	strcpy(ov_pair[arg]->option, option_buf + 2);
 	strcpy(ov_pair[arg]->value, value_buf + 1);

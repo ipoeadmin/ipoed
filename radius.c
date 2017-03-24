@@ -140,34 +140,6 @@ static int radius_start(struct authdata_t * authdata, short request_type)
 		return RAD_NACK;
 	}
 	
-<<<<<<< HEAD
-		if ( (errcode = rad_put_string(rad_handle, RAD_NAS_IDENTIFIER, "ipoe.navigator-com.ru")) == -1 )
-	{
-		strcpy(errmsg, "Unable to add NAS_IDENTIFIER\n");
-		return -1;
-	}
-	
-		if ( (errcode = rad_put_string(rad_handle, RAD_ACCT_SESSION_ID, "TEST")) == -1 )
-	{
-		strcpy(errmsg, "Unable to add NAS_ACCT_SESSION_ID\n");
-		return -1;
-	}
-	
-		if ( (errcode = rad_put_int(rad_handle, RAD_NAS_PORT_TYPE, 15 )) == -1 )
-	{
-		strcpy(errmsg, "Unable to add NAS_PORT_TYPE\n");
-		return -1;
-	}
-	
-		if ( (errcode = rad_put_int(rad_handle, RAD_SERVICE_TYPE, 2)) == -1 )
-	{
-		strcpy(errmsg, "Unable to add RAD_SERVICE_TYPE\n");
-		return -1;
-	}
-	
-
-	return (0);
-=======
 	syslog(LOG_INFO, "RADIUS: Put RAD_SERVICE_TYPE: RAD_FRAMED");
 	if (rad_put_int(authdata->rad_handle, RAD_SERVICE_TYPE, RAD_FRAMED) == -1)
 	{
@@ -178,7 +150,6 @@ static int radius_start(struct authdata_t * authdata, short request_type)
 
 	
 	return RAD_ACK;
->>>>>>> test1
 }
 
 static int radius_put_auth(struct authdata_t * authdata)
@@ -204,9 +175,7 @@ static int radius_send_request(struct authdata_t * authdata)
 	struct timeval timelimit;
 	struct timeval tv;
 	int fd, n;
-/* DEBUG
 	syslog(LOG_INFO, "RADIUS: Send request for %s", authdata->uname);
-*/
 	n = rad_init_send_request(authdata->rad_handle, &fd, &tv);
 	if ( n!=0 )
 	{
