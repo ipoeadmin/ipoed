@@ -17,5 +17,6 @@
 
 
 extern int radius_authenticate(struct authdata_t *);
+extern int radius_account(struct authdata_t *)
 extern void radius_close(struct  authdata_t *);
 
