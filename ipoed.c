@@ -6,9 +6,12 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <sys/param.h>
 #include <libutil.h>
+
+#include <sys/time.h>
 
 /* Net include */
 
@@ -49,6 +52,7 @@ static const char * pid_name = "var/run/ipoed.pid";
 
 /* Some Function definitions */
 
+static void Shutdown(int sig __unused);
 int parse_args(ov_pair_t ** ov_pair, char ** argv, int argc, u_char * daemonize,char * errmsg);
 int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair, int argc, char * errmsg);
 
@@ -58,32 +62,28 @@ int is_bit(int bit);
 
 static void daemon_mode(void);
 
+static int get_session_id(char * ip, char * res);
+
 void print_settings(struct ipoed_settings_t * ipoed_settings);
 
 int main(int argc, char ** argv)
 {
     /* Global settings*/
     
+    struct timeval * tv;
+    
     struct ipoed_settings_t ipoed_settings =
     {
-    .divert_port = htons(9000),
-    .rad_srv_host.s_addr = inet_addr("127.0.0.1"),
-    .rad_auth_port = 1812,
-    .rad_acct_port = 0,
-    .rad_secret = (char *)malloc(sizeof(char) * 255),
-    .table_auth = htons(1),
-    .table_shaping = htons(2),
-    .daemonize = 0
+	.divert_port = htons(9000),
+	.table_auth = htons(1),
+	.table_shaping = htons(2),
+	.daemonize = 0
     };
 	
     /* Option value pair */
 	
     ov_pair_t ** ov_pair;
-	
-    /* Radius handle */
-	
-    struct rad_handle * rad_handle;
-	
+    
     /* For packet processing */
     
     struct sockaddr_in addr;
@@ -95,13 +95,23 @@ int main(int argc, char ** argv)
     struct in_addr ip_in_addr;
     unsigned short ip_hash = 0;
 	
-    struct ipoed_client_t ipoed_clients[65535];
-	
+    struct radconf_t * radconf;
+    struct ipoed_user_profile_t ipoed_user_profiles[65535];
+    
     openlog("ipoed", LOG_PID | LOG_NDELAY | LOG_CONS | LOG_PERROR, LOG_USER);
     errmsg = (char *)malloc(sizeof errmsg);
+    
     ov_pair = (ov_pair_t **)malloc(sizeof(ov_pair_t *) * argc);
     
+    radconf = (struct radconf_t *)malloc(sizeof(struct radconf_t));
     
+    radconf->rad_host.s_addr = inet_addr("127.0.0.1");
+    radconf->rad_auth_port = 1812;
+    radconf->rad_acct_port = 1813;
+    
+    radconf->rad_secret = (char *)malloc(sizeof(char) * 255);
+    
+    ipoed_settings.radconf = radconf;
 	
     syslog (LOG_INFO, "Attemtping to parse_args()...");
     errcode = parse_args(ov_pair, argv, argc, &daemonize, errmsg);
@@ -153,13 +163,12 @@ int main(int argc, char ** argv)
     };
 	
     siginterrupt(SIGTERM, 1);
-    signal(SIGTERM, shutdown);
+    signal(SIGTERM, Shutdown);
 	
     /* Packet processing */	
 	
     while (running)
     {
-	    rad_handle = rad_auth_open();
 	    orig_byte = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *) &addr, &addr_size);
 	    if (orig_byte == -1)
 	    {
@@ -170,46 +179,39 @@ int main(int argc, char ** argv)
 	    ip = (struct ip*) buf;
 	    ip_in_addr = ip->ip_src;
 	    ip_hash = htonl(ip_in_addr.s_addr) & 0x0000ffff;
+	    ipoed_user_profiles[ip_hash].authdata.radconf = ipoed_settings.radconf;
+	    ipoed_user_profiles[ip_hash].authdata.rad_handle = rad_open();
+	    
+	    if (ipoed_user_profiles[ip_hash].authdata.session_updated == NULL)
+		ipoed_user_profiles[ip_hash].authdata.session_updated = (struct timeval *)malloc(sizeof(struct timeval));
+		
+	    if (ipoed_user_profiles[ip_hash].authdata.uname == NULL)
+		ipoed_user_profiles[ip_hash].authdata.uname = (char *)malloc(sizeof(char) * 16);
+
+	    strcpy(ipoed_user_profiles[ip_hash].authdata.uname, inet_ntoa(ip_in_addr));
+
+	    if (ipoed_user_profiles[ip_hash].authdata.session_id == NULL)
+		ipoed_user_profiles[ip_hash].authdata.session_id = (char *)malloc(sizeof(char) * 20);
+
+	    get_session_id(ipoed_user_profiles[ip_hash].authdata.uname, ipoed_user_profiles[ip_hash].authdata.session_id);
 	    
 	    /* Check auth status */
-	    
-	    if (ipoed_clients[ip_hash].auth == 1)
+	
+	    if (ipoed_user_profiles[ip_hash].authdata.status == 1)
 		continue;
-	    
-	    if ( (errcode = rad_initialize(rad_handle, &ipoed_settings, errmsg)) == -1 )
-	    {
-		    syslog(LOG_ERR, "RADIUS error: %s", errmsg);
-		    continue;
-	    }
-	    
-	    if ( (errcode = rad_add_user_name(rad_handle, ip_in_addr, errmsg)) == -1 )
-	    {
-		    syslog(LOG_ERR, "RADIUS error: %s", errmsg);
-		    continue;
-	    }
-	    
-	    switch ( errcode = rad_send_req(rad_handle, errmsg) )
-	    {
-		    case 2: 
-			ipoed_clients[ip_hash].auth = 1;
-			printf("IP %s is auth\n", inet_ntoa(ip_in_addr));
-			break;
-		    case 3:
-			ipoed_clients[ip_hash].auth = 0;
-			printf("IP %s is not auth\n", inet_ntoa(ip_in_addr));
-			break;
-		    default:
-			printf("Nothing to do!  %s \n", rad_strerror(rad_handle));
-			break;
-	    }
-	    free(rad_handle);
+
+	    radius_authenticate(&(ipoed_user_profiles[ip_hash].authdata));
+		
+	    radius_close(&(ipoed_user_profiles[ip_hash].authdata));
     }
 	
     /* END of Packet processing */
 	
     free(errmsg);
-    free(ipoed_settings.rad_secret);
+    free(ipoed_settings.radconf);
+    free(radconf);
     free(ov_pair);
+    free(&ipoed_user_profiles);
     closelog();
     return (0);
 }
@@ -233,10 +235,10 @@ static void daemon_mode(void)
 void print_settings(struct ipoed_settings_t * ipoed_settings)
 {
     printf("Divert port: %d\n", ntohs(ipoed_settings->divert_port));
-    printf("RADIUS Server IP address: %s\n", inet_ntoa(ipoed_settings->rad_srv_host));
-    printf("RADIUS Auth port: %d\n", ipoed_settings->rad_auth_port);
-    printf("RADIUS Acct port: %d\n", ipoed_settings->rad_acct_port);
-    printf("RADIUS Secret: %s\n", ipoed_settings->rad_secret);
+    printf("RADIUS Server IP address: %s\n", inet_ntoa(ipoed_settings->radconf->rad_host));
+    printf("RADIUS Auth port: %d\n", ipoed_settings->radconf->rad_auth_port);
+    printf("RADIUS Acct port: %d\n", ipoed_settings->radconf->rad_acct_port);
+    printf("RADIUS Secret: %s\n", ipoed_settings->radconf->rad_secret);
     printf("IPFW Auth table: %d\n", ntohs(ipoed_settings->table_auth));
     printf("IPFW Shaping table: %d\n", ntohs(ipoed_settings->table_shaping));
     printf("Daemonize: %d\n", ipoed_settings->daemonize);
@@ -259,10 +261,8 @@ int parse_args(ov_pair_t ** ov_pair,char ** argv, int argc, u_char * daemonize, 
     char sep[10] = "=";
     char * option_buf;
     char * value_buf;
-    
-    option_buf = (char *)malloc(sizeof option_buf * 255);
-    value_buf = (char *)malloc(sizeof value_buf * 255);
-    
+    option_buf = (char *)malloc(sizeof option_buf * 100);
+    value_buf = (char *)malloc(sizeof value_buf * 100);
     for (arg = 1; arg < argc; arg++)
     {
 	if ((ov_pair[arg] = (ov_pair_t *)malloc(sizeof(ov_pair_t))) == NULL)
@@ -285,12 +285,17 @@ int parse_args(ov_pair_t ** ov_pair,char ** argv, int argc, u_char * daemonize, 
 	    strcpy(errmsg, "Illegal option value! \n");
 	    return 3;
 	}
+<<<<<<< HEAD
 	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 255);
 	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 255);
+=======
+	ov_pair[arg]->option = (char *)malloc(sizeof(char) * 100);
+	ov_pair[arg]->value = (char *)malloc(sizeof(char) * 100);
+>>>>>>> test1
 	strcpy(option_buf, strtok(argv[arg], sep));
 	strcpy(ov_pair[arg]->option, option_buf + 2);
 	strcpy(ov_pair[arg]->value, value_buf + 1);
-	ovp_index++;
+//	ovp_index++;
     }
     free(option_buf);
     free(value_buf);
@@ -303,7 +308,6 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
     int int_buf;
     char * char_buf;
     in_addr_t ip_addr_buf;
-
     char_buf=(char *)malloc(sizeof char_buf);
     if (ipoed_settings == NULL)
     {
@@ -335,7 +339,7 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
 		strcpy(errmsg, "Invalid RADIUS Server IP address!\n");
 		return -1;
 	    }
-	    ipoed_settings->rad_srv_host.s_addr = ip_addr_buf;
+	    ipoed_settings->radconf->rad_host.s_addr = ip_addr_buf;
 	    continue;
 	}
 	
@@ -347,7 +351,7 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
 		strcpy(errmsg, "RADIUS Auth port number is not integer or out of range\n");
 		return -1;
 	    }
-	    ipoed_settings->rad_auth_port = htons(int_buf);
+	    ipoed_settings->radconf->rad_auth_port = int_buf;
 	    continue;
 	}
 	
@@ -359,7 +363,7 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
 		strcpy(errmsg, "RADIUS Acct port number is not integer or out of range\n");
 		return -1;
 	    }
-	    ipoed_settings->rad_acct_port = htons(int_buf);
+	    ipoed_settings->radconf->rad_acct_port = int_buf;
 	    continue;
 	}
 	
@@ -401,8 +405,8 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
 	
 	if (!strcmp(ov_pair[arg]->option, "rad-secret"))
 	{
-	    ipoed_settings->rad_secret = (char *)malloc(sizeof(char) * 255);
-	    strcpy(ipoed_settings->rad_secret, ov_pair[arg]->value);
+	    //ipoed_settings->radconf->rad_secret = (char *)malloc(sizeof(char) * 255);
+	    strcpy(ipoed_settings->radconf->rad_secret, ov_pair[arg]->value);
 	    continue;
 	}
 	
@@ -414,3 +418,26 @@ int init_settings(struct ipoed_settings_t * ipoed_settings, ov_pair_t ** ov_pair
     return (0);
 }
 
+static void Shutdown(int sig __unused)
+{
+	running = 0;
+};
+
+static int  get_session_id(char * ip, char * res)
+{
+        char * tmpval;
+        u_int16_t ip_hash;
+        in_addr_t in_addr;
+        struct timeval  tv;
+	tmpval = (char *)malloc(sizeof(char));
+        if ((in_addr = inet_addr(ip)) == -1)
+        {
+                return -1;
+        }
+        ip_hash = in_addr & 0x0000FFFF;
+	gettimeofday(&tv, NULL);
+        sprintf(tmpval, "LINK-%d-%ld", ip_hash, tv.tv_sec);
+        strcpy(res, tmpval);
+        free(tmpval);
+        return 0;
+}
