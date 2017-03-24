@@ -259,6 +259,7 @@ static int radius_get_params(struct authdata_t * authdata)
 	const void * data;
 	size_t len;
 	int res, i, j;
+	u_int32_t timeout;
 	u_int32_t vendor;
 	char buf[64];
 	struct in_addr ip;
@@ -267,13 +268,42 @@ static int radius_get_params(struct authdata_t * authdata)
 	{
 		switch (res)
 		{
+			case RAD_FRAMED_PROTOCOL:
+				i = rad_cvt_int(data);
+				syslog(LOG_INFO, "RADIUS: RAD_FRAMED_PROTOCOL=%d", i);
+				break;
+				
+			case RAD_SERVICE_TYPE:
+				i = rad_cvt_int(data);
+				syslog(LOG_INFO, "RADIUS: RAD_SERVICE_TYPE=%d", i);
+				break;
+				
+			case RAD_FRAMED_IP_ADDRESS:
+				ip = rad_cvt_addr(data);
+				syslog(LOG_INFO, "RADIUS: RAD_FRAMED_IP_ADDRESS=%s", inet_ntoa(ip));
+				break;
+				
+			case RAD_FRAMED_IP_NETMASK:
+				ip = rad_cvt_addr(data);
+				syslog(LOG_INFO, "RADIUS: RAD_FRAMED_IP_NETMASK=%s", inet_ntoa(ip));
+				break;
+				
+			case RAD_SESSION_TIMEOUT:
+				timeout = rad_cvt_int(data);
+				syslog(LOG_INFO, "RADIUS: RAD_SESSION_TIMEOUT=%u", timeout);
+				break;
+				
+			case RAD_ACCT_INTERIM_INTERVAL:
+				timeout = rad_cvt_int(data);
+				syslog(LOG_INFO, "RADIUS: RAD_ACCT_INTERIM_INTERVAL=%u", timeout);
+				break;
+				
 			case RAD_VENDOR_SPECIFIC:
 				if (( res = rad_get_vendor_attr(&vendor, &data, &len)) == -1)
 					{
 						syslog(LOG_ERR, "RADIUS: Get vendor attr failed: %s", rad_strerror(authdata->rad_handle));
 						return RAD_NACK;
 					}
-				
 				switch (vendor)
 				{
 					case 9:
@@ -284,9 +314,7 @@ static int radius_get_params(struct authdata_t * authdata)
 								break;
 						}
 				}
-			default:
-				return RAD_ACK;
 		}
 	}
-	return 0;
+	return RAD_ACK;
 }
