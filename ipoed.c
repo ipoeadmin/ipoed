@@ -35,6 +35,7 @@
 
 #include "ipoed.h"
 #include "radius.h"
+#include "attrib_parser.h"
 
 /* Global variables definitions */
 
